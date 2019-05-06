@@ -5,8 +5,8 @@ account: mmmdata
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 911230
-bundleId: 2062477
+bundleId: 2062578
 url: https://mmmdata.shinyapps.io/p-value-diagnosticity/
-when: 1557104341.32115
+when: 1557107318.92297
 asMultiple: FALSE
 asStatic: FALSE

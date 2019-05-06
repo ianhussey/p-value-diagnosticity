@@ -1,0 +1,98 @@
+---
+title: "Diagnosticity of p values"
+author: "Ian Hussey^[Ghent University. Email: ian.hussey@ugent.be]"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+```{r, include=FALSE}
+
+# set defaults
+knitr::opts_chunk$set(echo = FALSE,
+                      message = FALSE,
+                      warning = FALSE)
+
+```
+
+```{r}
+
+# dependencies
+library(tidyverse)
+
+# disable scientific notation
+options(scipen = 999) 
+
+# knitr output for html (comment out if knitting to pdf)
+options(knitr.table.format = "html")
+
+```
+
+```{r}
+
+# simulate across a range of alpha, power, and true hypothesis rates
+results_list <- list()
+
+for (alpha in c(100, 050, 010, 005, 001)) {
+  for (power in seq(from = 5, to = 95, by = 5)) {
+    for (perc_true_hypotheses in seq(from = 5, to = 95, by = 5)) {
+      results <- p_diagnosticity(alpha = alpha/1000,
+                                 power = power/100,
+                                 perc_true_hypotheses = perc_true_hypotheses/100) %>%
+        mutate(alpha = alpha/1000,
+               power = power/100, 
+               perc_true_hypotheses = perc_true_hypotheses/100)
+      
+      results_list[[paste(alpha, power, perc_true_hypotheses, sep = "_")]] <- results
+    }
+  }
+}
+
+results <- bind_rows(results_list)
+
+```
+
+```{r}
+
+results_significant <- results %>%
+  filter(Result == "significant")
+
+# 3d plot to be added
+
+```
+
+```{r}
+
+results_nonsignificant <- results %>%
+  filter(Result == "non-significant")
+
+# 3d plot to be added
+
+
+```
+
+```{r}
+
+results_both <- results %>%
+  filter(Result == "both")
+
+# 3d plot to be added
+
+
+```
+
+```{r}
+
+results_both_alpha0.05 <- results %>%
+  filter(Result == "both" & alpha == 0.05)
+
+# 3d plot to be added
+
+
+```
+

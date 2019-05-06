@@ -50,7 +50,9 @@ ui <- fluidPage(
         
         h2("Examples"),
         p("In case you don't have a power calculator at hand, below are some example power values for some common sample and effect sizes. All represent an independent t-test using alpha = 0.05 (two-tailed). Percent of hypotheses is subjective in all cases."),
-        tableOutput("examples")
+        tableOutput("examples"),
+        
+        p("Code by Ian Hussey, available on", a(href = "https://github.com/ianhussey/p-value-diagnosticity", "GitHub")) 
         
       )
    )
@@ -107,8 +109,8 @@ server <- function(input, output) {
       pull(Diagnosticity)
     
     return(paste0("Under these conditions, ", round((1-result_sig)*100, 0), "% of all significant p values represent false positives, and ",
-                  round((1-result_nonsig)*100, 0), "% of all non-signficiant p values represent false negatives. Together, ", 
-                  round((1-result_all)*100, 0), "% of all p values return incorrect conclusions simply due to error variance."))
+                  round((1-result_nonsig)*100, 0), "% of all non-significant p values represent false negatives. Together, ", 
+                  round((1-result_all)*100, 0), "% of all p values return incorrect conclusions."))
     
   }
   

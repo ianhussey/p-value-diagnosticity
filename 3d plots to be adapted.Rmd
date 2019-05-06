@@ -1,0 +1,141 @@
+---
+title: "Power analysis simulation study for single-subject AB designs"
+author: "Ian Hussey^[Ghent University. Email: ian.hussey@ugent.be]"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+These simulations compare the power of four different decision making methods to detect true effect sizes of different sizes and across a varying number of data collection timepoints in AB SCED designs. Results inform researchers as to the power curve they can expect when using one decision making method relative to another, across a variety of possible true effect sizes and likely research designs (i.e., number of data collection timepoints).
+
+The decision making methods studied are *p* values via permutation tests (no parametric assumptions), Bayes Factors for autoregressive data, the lower bound bootstrapped 95% confidence interval on Hedges' *g* (equivalent to Cohen's d but bias adjusted for small sample sizes) and the lower bound bootstrapped 95% confidence interval on Ruscio's A (a non-parametric effect size, also referred to as the Area Under the Curve, the Probability of Superiority, and similar to the Common Language Effect Size).
+
+True effect size is varied from Hedges' g = 0 (true null effect) to Hedge's g = 3.0 (very large true effect) in steps of 0.2. Hedge's g highly similar to Cohen's d but is bias corrected for small samples sizes. Data is generated for the pre and post intervention conditions to follow normal distributions. Real data is likely to violate this distribution, which will impact the parametric decision making methods (Hedge's g 95% CIs, and to some degree the BF) more than the non-parametric methods () 
+
+For all simulations, "timepoints" refers to the number of timepoint pairs. E.g., timespoints = 5 refers to 5 measurement points before the intervention and 5 measurement points after it. The number of timepoints is varied between simuliations from 5 and 25 in steps of 5. Note that all simulations assume a balanced design of equal number of timepoints pre and post intervention. Should this assumption be violated, the performance of measures with parametric assumptions (Hedges' g, BF to some extent) will decrease.
+
+1000 participants are simulated for each cell in the interaction between the number of timepoints (5 levels) and the true effect size (16 levels). 1000 bootstraps or iterations are used for each test within each participant. 320,000,000 total decision making tests are therefore run. Note that if you'd like to re run the simulation or change it in some way that due to the high number of significance tests it currently takes roughly 16 hours to run on a high end desktop (3.8 GHz 7600K i5 w/ 16GB RAM).
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(message=FALSE,
+                      #echo=FALSE,
+                      warning=FALSE,
+                      cache.lazy=FALSE)
+```
+
+```{r}
+
+# dependencies
+library(tidyverse)
+library(plotly)
+
+# get data
+simulation_results <- read.csv("simulation_results.csv") %>%
+  rename(`p < .05` = p_05_percent, 
+         `BF > 3` = bf_3_percent, 
+         `BF < .333` = bf_.333_percent, 
+         `Bootstrapped lower 95% CI on Hedges' g` = hedges_g_ci_lwr_greater_0_percent, 
+         `Bootstrapped lower 95% CI on Ruscio's A` = ruscios_A_ci_lwr_greater_0.5_percent)
+
+```
+
+# 2D power plots
+
+## Comparing multiple decision making methods
+
+Each cell represents a different true effect size. Grey dotted line represents power = .80. Individual lines represent different decision making methods.
+
+```{r fig.height=5.5, fig.width=9}
+
+simulation_results %>%
+  gather(Method, value, c(`p < .05`, `BF > 3`, `Bootstrapped lower 95% CI on Hedges' g`, `Bootstrapped lower 95% CI on Ruscio's A`)) %>%
+  ggplot(aes(x = k_timepoints)) +
+  geom_hline(yintercept = 0.8, linetype = "dashed", color = "darkgrey") +
+  geom_line(aes(y = value, linetype = Method, color = Method), size = 0.75) +
+  scale_colour_viridis_d(begin = 0, end = 0.8) +
+  theme_classic() +
+  ylab("Power (1 - B)") +
+  xlab("Timepoints") +
+  facet_wrap(~hedges_g_true)
+
+```
+
+Intermediate conclusions: 
+
+- Frequentist methods demonstrate greater power than the pseudo-Bayesian method (Bayes Factors for autoregressive data) across simulated parameters.
+- Individual frequentist methods perform similarly, however the parametric methods are likely to worsen when their assumptions are violated under real-world conditions. Consider an additional simulation to demonstrate this.
+
+# 3D power plots
+
+## *p* only
+
+Permuted *p* values perform comparably to other frequentist methods and are likely to maintain this performance under varied real-world conditions. I therefore select them to plot their performance across true effect size and number of timepoints.
+
+```{r}
+
+simulation_results_2 <- simulation_results %>%
+  select(hedges_g_true, k_timepoints, `p < .05`) %>%
+  spread(k_timepoints, `p < .05`) %>%
+  magrittr::set_rownames(.$hedges_g_true) %>%
+  select(-hedges_g_true) %>%
+  as.matrix()
+
+powered <- c(rep(rep(.8, 5), 16)) 
+
+dim(powered) <- c(16, 5) %>%
+  as.matrix() 
+
+plot_ly(showscale = FALSE) %>%
+  add_surface(x = c(5, 10, 15, 20, 25), 
+              y = c(0, 
+                    0.2, 0.4, 0.6, 0.8, 1.0, 
+                    1.2, 1.4, 1.6, 1.8, 2.0,
+                    2.2, 2.4, 2.6, 2.8, 3.0),
+              z = ~simulation_results_2) %>%
+  add_surface(x = c(5, 10, 15, 20, 25), 
+              y = c(0, 
+                    0.2, 0.4, 0.6, 0.8, 1.0, 
+                    1.2, 1.4, 1.6, 1.8, 2.0,
+                    2.2, 2.4, 2.6, 2.8, 3.0),
+              z = ~powered, opacity = .85, color = "grey") %>%  # color not working but grey will do
+  layout(
+    scene = list(
+      xaxis = list(title = "Timepoints"),
+      yaxis = list(title = "True effect size"),
+      zaxis = list(title = "Power")
+    ))
+
+```
+
+- NB X and Y axis labels not showing correctly 
+
+### 2D slice at .80 power
+
+In order to understand their performance at the generally agreed-upon threshold for adequate power (1 - B) = 0.8), replot the horizontal plane from the previous plot and display as a 2d plot. Ie, what number of timepoint pairs do you need for different true effect sizes to have .8 power. 
+
+```{r fig.height=4, fig.width=5.25}
+
+temp <- simulation_results %>%
+  mutate(`power >= .8` = as.factor(ifelse(`p < .05` >= .8, TRUE, FALSE)))
+
+ggplot(data = temp, aes(k_timepoints, hedges_g_true)) +
+  geom_tile(aes(fill = `p < .05`)) +
+  scale_fill_viridis_c() +
+  xlab("Timepoints") +
+  ylab("True effect size (Hedges' g)") +
+  guides(fill = guide_legend(title = "Power (1 - B)")) +
+  scale_x_continuous(breaks = c(5, 10, 15, 20, 25)) +
+  scale_y_continuous(breaks = c(0, .5, 1, 1.5, 2, 2.5, 3)) +
+  theme(panel.background = element_blank())
+
+```
+
+Intermediate conclusions: 
+
+- No measures provide adequate power to detect true effects in at least 80% of participants when the true effect size is less than Hedges' g = 1, and assuming a reasonable number of timepoints (e.g., max 25). 
+- 15+ timepoint pairs is probably reccomended for to provide good power across a range of likely SCED designs for intervention studies (e.g., where true effect size c.1.5).

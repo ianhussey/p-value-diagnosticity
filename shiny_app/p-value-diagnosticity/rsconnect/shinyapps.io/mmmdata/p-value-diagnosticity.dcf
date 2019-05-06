@@ -1,0 +1,12 @@
+name: p-value-diagnosticity
+title: p-value-diagnosticity
+username:
+account: mmmdata
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 911230
+bundleId: 2062477
+url: https://mmmdata.shinyapps.io/p-value-diagnosticity/
+when: 1557104341.32115
+asMultiple: FALSE
+asStatic: FALSE

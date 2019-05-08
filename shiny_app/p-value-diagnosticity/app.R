@@ -15,10 +15,10 @@ ui <- fluidPage(
       sidebarPanel(
          sliderInput("alpha",
                      "Alpha",
-                     min   = 0.001,
-                     max   = 0.100,
+                     min   = 0.005,
+                     max   = 0.300,
                      value = 0.05,
-                     step  = 0.001),
+                     step  = 0.005),
          
          sliderInput("power",
                      "Power (1-beta)",

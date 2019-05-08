@@ -24,6 +24,7 @@ knitr::opts_chunk$set(echo = FALSE,
 
 # dependencies
 library(tidyverse)
+source("p_diagnosticity.R")
 
 # disable scientific notation
 options(scipen = 999) 
@@ -60,7 +61,7 @@ results <- bind_rows(results_list)
 ```{r}
 
 results_significant <- results %>%
-  filter(Result == "significant")
+  filter(result == "significant")
 
 # 3d plot to be added
 
@@ -69,7 +70,7 @@ results_significant <- results %>%
 ```{r}
 
 results_nonsignificant <- results %>%
-  filter(Result == "non-significant")
+  filter(result == "non-significant")
 
 # 3d plot to be added
 
@@ -79,7 +80,7 @@ results_nonsignificant <- results %>%
 ```{r}
 
 results_both <- results %>%
-  filter(Result == "both")
+  filter(result == "both")
 
 # 3d plot to be added
 
@@ -89,7 +90,7 @@ results_both <- results %>%
 ```{r}
 
 results_both_alpha0.05 <- results %>%
-  filter(Result == "both" & alpha == 0.05)
+  filter(result == "both" & alpha == 0.05)
 
 # 3d plot to be added
 

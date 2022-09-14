@@ -11,7 +11,7 @@ library(DiagrammeR)
 ui <- fluidPage(
    
    # Application title
-   titlePanel("False Discovery Rates given alpha level, statistical power, and the baserate of true hypotheses"),
+   titlePanel("Understanding the False Discovery Rate"),
    
    # Sidebar with a slider input  
    sidebarLayout(
@@ -25,15 +25,15 @@ ui <- fluidPage(
          
          sliderInput("power",
                      "Power (1-beta)",
-                     min   = 0.00,
-                     max   = 1.00,
+                     min   = 0.01,
+                     max   = 0.99,
                      value = 0.80,
                      step  = 0.01),
          
          sliderInput("true_hypotheses",
                      "Percent of alternative hypotheses made that are correct",
-                     min   = 0.00,
-                     max   = 1.00,
+                     min   = 0.01,
+                     max   = 0.99,
                      value = 0.50,
                      step  = 0.01)
       ),
@@ -41,12 +41,14 @@ ui <- fluidPage(
       # Show a table of the results
       mainPanel(
         
+        grVizOutput('diagnosticity_plot'),
+        
+        p(textOutput("\n")),
+
+        tableOutput("diagnosticity_table"),
+        
         p(textOutput("diagnosticity_text")),
         p("Note that factors such as underestimated power, poor measurement, p-hacking, publication bias, etc. will worsen this rate further."),
-        
-        grVizOutput('diagnosticity_plot', width = "60%", height = "30%"),
-        
-        tableOutput("diagnosticity_table"),
         
         p("Code by Ian Hussey, available on", a(href = "https://github.com/ianhussey/p-value-diagnosticity", "GitHub")) 
         
@@ -59,22 +61,24 @@ server <- function(input, output) {
   
   p_diagnosticity <- function(alpha = 0.05, power = 0.80, true_hypotheses = 0.50, total_sample = 100) {
     
-    TP <- round_half_up(true_hypotheses     * power     * total_sample, 0)
-    FN <- round_half_up(true_hypotheses     * (1-power) * total_sample, 0)
-    TN <- round_half_up((1-true_hypotheses) * (1-alpha) * total_sample, 0)
-    FP <- round_half_up((1-true_hypotheses) * alpha     * total_sample, 0)
+    TP  <- round(true_hypotheses     * power     * total_sample, 0)
+    FN  <- round(true_hypotheses     * (1-power) * total_sample, 0)
+    TN  <- round((1-true_hypotheses) * (1-alpha) * total_sample, 0)
+    FP  <- round((1-true_hypotheses) * alpha     * total_sample, 0)
     
-    P <- TP + FN
-    N <- TN + FP
+    P   <- TP + FN
+    N   <- TN + FP
     
-    PP <- TP + FP
-    PN <- TN + FN
+    PP  <- TP + FP
+    PN  <- TN + FN
     
     PPV <- round_half_up(TP / PP, 2)
     NPV <- round_half_up(TN / PN, 2)
     
     FDR <- round_half_up(1 - PPV, 2)
     FOR <- round_half_up(1 - NPV, 2)
+    
+    #accuracy <- round_half_up((TP + TN)/(P + N), 2)
   
     res <- 
       tibble(`Experiments run`      = as.character(total_sample),
@@ -88,6 +92,7 @@ server <- function(input, output) {
              `False omission rate`  = paste0(FOR*100, "%"),
              `Diagnosticity of p-value for a true-real effect` = paste0(PPV*100, "%"),
              `Diagnositicity of p-value for a true-null effect` = paste0(NPV*100, "%"))
+             #`Accuracy of decisions` = paste0(accuracy*100, "%"))
     
     return(res)
     
@@ -98,12 +103,13 @@ server <- function(input, output) {
     result <- p_diagnosticity(alpha = input$alpha,
                               power = input$power,
                               true_hypotheses = input$true_hypotheses)
-    
+
     result %>%
       select(`False discovery rate`,
              `False omission rate`,
              `Diagnosticity of p-value for a true-real effect`,
              `Diagnositicity of p-value for a true-null effect`) %>%
+             #`Accuracy of decisions`) %>%
       pivot_longer(cols = everything()) %>%
       knitr::kable("html", col.names = NULL) %>%
       kable_styling("striped", full_width = FALSE, position = "left")
@@ -129,8 +135,6 @@ server <- function(input, output) {
                               power = input$power,
                               true_hypotheses = input$true_hypotheses)
     
-    #fixedsize = TRUE, 
-    #fontsize = 4] 
     grViz(diagram = "digraph flowchart {
         # define node aesthetics
         node [fontname = Arial, 
@@ -157,10 +161,6 @@ server <- function(input, output) {
     )
     
   })
-  
-  # output$diagnosticity_plot2 <- renderGrViz({
-  #   
-  # })
   
 }
 

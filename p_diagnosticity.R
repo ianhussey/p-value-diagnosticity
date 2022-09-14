@@ -13,6 +13,7 @@
 p_diagnosticity <- function(alpha = 0.05, power = 0.80, baserate_of_true_hypotheses = 0.50) {
   
   require(dplyr)
+  require(janitor)
   
   # true and false positives
   h1_true <- rep(c(rep(0, (1-power)*100), rep(1, power*100)), 
@@ -29,15 +30,15 @@ p_diagnosticity <- function(alpha = 0.05, power = 0.80, baserate_of_true_hypothe
   # Diagnositic odds ratio could therefore be calculated from these two alone.
   
   # PPV = TP/(TP + FP)
-  # nb false discovery rate = 1 - PPV
-  positive_predictive_value <- round(length(h1_true[h1_true == 1]) / length(all_tests[all_tests == 1]), 4)
+  # NB false discovery rate = 1 - PPV
+  positive_predictive_value <- round_half_up(length(h1_true[h1_true == 1]) / length(all_tests[all_tests == 1]), 4)
   
   # FOR = FN/(TN + FN). 
   # NB negative predictive value = 1 - FOR 
-  false_omission_rate       <- round(length(h1_true[h1_true == 0]) / length(all_tests[all_tests == 0]), 4)
+  false_omission_rate       <- round_half_up(length(h1_true[h1_true == 0]) / length(all_tests[all_tests == 0]), 4)
   
   # accuracy
-  accuracy   <- round((length(h1_true[h1_true == 1]) + length(h0_true[h0_true == 0])) / length(all_tests), 4)
+  accuracy   <- round_half_up((length(h1_true[h1_true == 1]) + length(h0_true[h0_true == 0])) / length(all_tests), 4)
 
   return(data.frame(positive_predictive_value = positive_predictive_value, 
                     false_omission_rate       = false_omission_rate,

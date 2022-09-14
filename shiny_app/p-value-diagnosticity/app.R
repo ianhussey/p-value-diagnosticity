@@ -3,12 +3,13 @@ library(shiny)
 library(dplyr)
 library(knitr)
 library(kableExtra)
+library(janitor)
 
 # ui ----
 ui <- fluidPage(
    
    # Application title
-   titlePanel("Diagnosticity of a p value"),
+   titlePanel("False Discovery Rates given alpha level, statistical power, and the baserate of true hypotheses"),
    
    # Sidebar with a slider input for number of bins 
    sidebarLayout(
@@ -22,15 +23,15 @@ ui <- fluidPage(
          
          sliderInput("power",
                      "Power (1-beta)",
-                     min = 0.01,
-                     max = 0.99,
+                     min   = 0.00,
+                     max   = 1.00,
                      value = 0.80,
                      step  = 0.01),
          
-         sliderInput("perc_true_hypotheses",
+         sliderInput("true_hypotheses",
                      "Percent of alternative hypotheses made that are correct",
-                     min = 0.01,
-                     max = 0.99,
+                     min   = 0.00,
+                     max   = 1.00,
                      value = 0.50,
                      step  = 0.01)
       ),
@@ -38,19 +39,20 @@ ui <- fluidPage(
       # Show a plot of the generated distribution
       mainPanel(
         
-        p("Alpha value and power (1-beta) are often thought of separately, with alpha value serving to limit false positives and power serving to limit false negatives. However, in practice, the two are inextricably linked. This app demonstrates that the diagnostic value of any given p value is co-dependant on alpha, power (1-beta), and the percentage of hypotheses that are ultimately true."),
-        p("Specifically, diagnosticity refers to probability that the test result (significant vs. non-significant) is congruent with the truth (true vs. null effect)."),
-        p("E.g., when significant p value is produced by a test that examines a true effect, or a non-significant p value is produced by a test that examines a true null effect."),
-        p("While the proportion of ultimately true hypotheses is ultimately unknowable, it is possible, useful, or even necessary to specify a range for this value for a given area of research in order to understand the diagnosticity of any given p value."),
+        #p("Alpha value and power (1-beta) are often thought of separately, with alpha value serving to limit false positives and power serving to limit false negatives. However, in practice, the two are inextricably linked. This app demonstrates that the diagnostic value of any given p value is co-dependant on alpha, power (1-beta), and the percentage of hypotheses that are ultimately true."),
+        #p("Specifically, diagnosticity refers to probability that the test result (significant vs. non-significant) is congruent with the truth (true vs. null effect)."),
+        #p("E.g., when significant p value is produced by a test that examines a true effect, or a non-significant p value is produced by a test that examines a true null effect."),
+        #p("While the proportion of ultimately true hypotheses is ultimately unknowable, it is possible, useful, or even necessary to specify a range for this value for a given area of research in order to understand the diagnosticity of any given p value."),
         
-        h2("Results"),
-        tableOutput("diagnosticity"),
+        #h2("Results"),
         p(textOutput("diagnosticity_text")),
-        p("Other factors such as underestimated power, p-hacking, publication bias, etc. may of course distort conclusions further."),
+        p("Note that factors such as underestimated power, poor measurement, p-hacking, publication bias, etc. will worsen this rate further."),
         
-        h2("Examples"),
-        p("In case you don't have a power calculator at hand, below are some example power values for some common sample and effect sizes. All represent an independent t-test using alpha = 0.05 (two-tailed). Percent of hypotheses is subjective in all cases."),
-        tableOutput("examples"),
+        tableOutput("diagnosticity"),
+        
+        # h2("Power examples"),
+        # p("In case you don't have a power calculator at hand, below are some example power values for some common sample and effect sizes. All represent an independent t-test using alpha = 0.05 (two-tailed). Percent of hypotheses is subjective in all cases."),
+        # tableOutput("examples"),
         
         p("Code by Ian Hussey, available on", a(href = "https://github.com/ianhussey/p-value-diagnosticity", "GitHub")) 
         
@@ -61,22 +63,39 @@ ui <- fluidPage(
 # server ----
 server <- function(input, output) {
   
-  p_diagnosticity <- function(alpha = 0.05, power = 0.80, perc_true_hypotheses = 0.50) {
+  p_diagnosticity <- function(alpha = 0.05, power = 0.80, true_hypotheses = 0.50, total_sample = 100) {
     
-    h1_true <- rep(c(rep(0, (1-power)*100), 
-                     rep(1, power*100)), perc_true_hypotheses*100)
+    TP <- round_half_up(true_hypotheses     * power     * total_sample, 0)
+    FN <- round_half_up(true_hypotheses     * (1-power) * total_sample, 0)
+    TN <- round_half_up((1-true_hypotheses) * (1-alpha) * total_sample, 0)
+    FP <- round_half_up((1-true_hypotheses) * alpha     * total_sample, 0)
     
-    h0_true <- rep(c(rep(0, (1-alpha)*100), 
-                     rep(1, alpha*100)), (1-perc_true_hypotheses)*100)
+    P <- TP + FN
+    N <- TN + FP
     
-    all_tests <- append(h1_true, h0_true)
+    PP <- TP + FP
+    PN <- TN + FN
     
-    sig    <- round(length(h1_true[h1_true == 1]) / length(all_tests[all_tests == 1]), 2)
-    nonsig <- round(length(h0_true[h0_true == 0]) / length(all_tests[all_tests == 0]), 2)
-    both   <- round((length(h1_true[h1_true == 1]) + length(h0_true[h0_true == 0])) / length(all_tests), 2)
+    PPV <- round_half_up(TP / PP, 2)
+    NPV <- round_half_up(TN / PN, 2)
     
-    return(data.frame(Result = c("Significant", "Non-significant", "All"),
-                      Diagnosticity = c(sig, nonsig, both)))
+    FDR <- round_half_up(1 - PPV, 2)
+    FOR <- round_half_up(1 - NPV, 2)
+  
+    res <- 
+      tibble(`Experiments run`      = total_sample,
+             `Total real effects`   = P,
+             `Total null effects`   = N,
+             `Real effects found`   = TP,
+             `Real effects missed`  = FN,
+             `Null effects found`   = TN,
+             `Null effects missed`  = FP,
+             `False discovery rate` = paste0(FDR*100, "%"),
+             `False omission rate`  = paste0(FOR*100, "%"),
+             `Diagnosticity of p-value for a true-real effect` = paste0(PPV*100, "%"),
+             `Diagnositicity of p-value for a true-null effect` = paste0(NPV*100, "%"))
+    
+    return(res)
     
   } 
   
@@ -84,45 +103,35 @@ server <- function(input, output) {
     
     p_diagnosticity(alpha = input$alpha, 
                     power = input$power, 
-                    perc_true_hypotheses = input$perc_true_hypotheses) %>%
+                    true_hypotheses = input$true_hypotheses) %>%
+      gather(Metric, Result) %>%
       knitr::kable("html") %>%
-      kable_styling("striped", full_width = FALSE)
+      kable_styling("striped", full_width = FALSE, position = "left")
     
   }
   
   output$diagnosticity_text <- function() {
-    
-    result <- p_diagnosticity(alpha = input$alpha, 
-                              power = input$power, 
-                              perc_true_hypotheses = input$perc_true_hypotheses)
-    
-    result_sig <- result %>%
-      filter(Result == "Significant") %>%
-      pull(Diagnosticity)
-    
-    result_nonsig <- result %>%
-      filter(Result == "Non-significant") %>%
-      pull(Diagnosticity)
-    
-    result_all <- result %>%
-      filter(Result == "All") %>%
-      pull(Diagnosticity)
-    
-    return(paste0("Under these conditions, ", round((1-result_sig)*100, 0), "% of all significant p values represent false positives, and ",
-                  round((1-result_nonsig)*100, 0), "% of all non-significant p values represent false negatives. Together, ", 
-                  round((1-result_all)*100, 0), "% of all p values return incorrect conclusions."))
+
+    result <- p_diagnosticity(alpha = input$alpha,
+                              power = input$power,
+                              true_hypotheses = input$true_hypotheses)
+
+    result_FDR <- result %>%
+      pull(`False discovery rate`)
+
+    return(paste0("Under these conditions, ", result_FDR, " of significant p-values represent false positives."))
     
   }
   
-  output$examples <- function() {
-    
-    data.frame(N = c(50, 50, 50, 100, 100, 100),
-               Size = c("small", "medium", "large", "small", "medium", "large"),
-               Power = c(0.11, 0.41, 0.79, 0.18, 0.70, 0.98)) %>%
-      knitr::kable("html") %>%
-      kable_styling("striped", full_width = FALSE)
-    
-  }
+  # output$examples <- function() {
+  #   
+  #   data.frame(N = c(50, 50, 50, 100, 100, 100),
+  #              Size = c("small", "medium", "large", "small", "medium", "large"),
+  #              Power = c(0.11, 0.41, 0.79, 0.18, 0.70, 0.98)) %>%
+  #     knitr::kable("html") %>%
+  #     kable_styling("striped", full_width = FALSE)
+  #   
+  # }
   
 }
 

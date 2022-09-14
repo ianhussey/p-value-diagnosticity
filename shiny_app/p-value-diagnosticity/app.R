@@ -11,7 +11,7 @@ ui <- fluidPage(
    # Application title
    titlePanel("False Discovery Rates given alpha level, statistical power, and the baserate of true hypotheses"),
    
-   # Sidebar with a slider input for number of bins 
+   # Sidebar with a slider input  
    sidebarLayout(
       sidebarPanel(
          sliderInput("alpha",
@@ -36,23 +36,13 @@ ui <- fluidPage(
                      step  = 0.01)
       ),
       
-      # Show a plot of the generated distribution
+      # Show a table of the results
       mainPanel(
         
-        #p("Alpha value and power (1-beta) are often thought of separately, with alpha value serving to limit false positives and power serving to limit false negatives. However, in practice, the two are inextricably linked. This app demonstrates that the diagnostic value of any given p value is co-dependant on alpha, power (1-beta), and the percentage of hypotheses that are ultimately true."),
-        #p("Specifically, diagnosticity refers to probability that the test result (significant vs. non-significant) is congruent with the truth (true vs. null effect)."),
-        #p("E.g., when significant p value is produced by a test that examines a true effect, or a non-significant p value is produced by a test that examines a true null effect."),
-        #p("While the proportion of ultimately true hypotheses is ultimately unknowable, it is possible, useful, or even necessary to specify a range for this value for a given area of research in order to understand the diagnosticity of any given p value."),
-        
-        #h2("Results"),
         p(textOutput("diagnosticity_text")),
         p("Note that factors such as underestimated power, poor measurement, p-hacking, publication bias, etc. will worsen this rate further."),
         
         tableOutput("diagnosticity"),
-        
-        # h2("Power examples"),
-        # p("In case you don't have a power calculator at hand, below are some example power values for some common sample and effect sizes. All represent an independent t-test using alpha = 0.05 (two-tailed). Percent of hypotheses is subjective in all cases."),
-        # tableOutput("examples"),
         
         p("Code by Ian Hussey, available on", a(href = "https://github.com/ianhussey/p-value-diagnosticity", "GitHub")) 
         
@@ -83,13 +73,13 @@ server <- function(input, output) {
     FOR <- round_half_up(1 - NPV, 2)
   
     res <- 
-      tibble(`Experiments run`      = total_sample,
-             `Total real effects`   = P,
-             `Total null effects`   = N,
-             `Real effects found`   = TP,
-             `Real effects missed`  = FN,
-             `Null effects found`   = TN,
-             `Null effects missed`  = FP,
+      tibble(`Experiments run`      = as.character(total_sample),
+             `Total real effects`   = as.character(P),
+             `Total null effects`   = as.character(N),
+             `Real effects found`   = as.character(TP),
+             `Real effects missed`  = as.character(FN),
+             `Null effects found`   = as.character(TN),
+             `Null effects missed`  = as.character(FP),
              `False discovery rate` = paste0(FDR*100, "%"),
              `False omission rate`  = paste0(FOR*100, "%"),
              `Diagnosticity of p-value for a true-real effect` = paste0(PPV*100, "%"),
@@ -104,7 +94,7 @@ server <- function(input, output) {
     p_diagnosticity(alpha = input$alpha, 
                     power = input$power, 
                     true_hypotheses = input$true_hypotheses) %>%
-      gather(Metric, Result) %>%
+      pivot_longer(cols = everything(), names_to = "Metric", values_to = "Result") %>%
       knitr::kable("html") %>%
       kable_styling("striped", full_width = FALSE, position = "left")
     
@@ -122,16 +112,6 @@ server <- function(input, output) {
     return(paste0("Under these conditions, ", result_FDR, " of significant p-values represent false positives."))
     
   }
-  
-  # output$examples <- function() {
-  #   
-  #   data.frame(N = c(50, 50, 50, 100, 100, 100),
-  #              Size = c("small", "medium", "large", "small", "medium", "large"),
-  #              Power = c(0.11, 0.41, 0.79, 0.18, 0.70, 0.98)) %>%
-  #     knitr::kable("html") %>%
-  #     kable_styling("striped", full_width = FALSE)
-  #   
-  # }
   
 }
 

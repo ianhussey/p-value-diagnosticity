@@ -1,0 +1,13 @@
+name: false-discovery-rate
+title: false-discovery-rate
+username:
+account: mmmdata
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 7009870
+bundleId: 6301554
+url: https://mmmdata.shinyapps.io/false-discovery-rate/
+when: 1663167715.22506
+lastSyncTime: 1663167715.22507
+asMultiple: FALSE
+asStatic: FALSE

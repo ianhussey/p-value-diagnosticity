@@ -5,6 +5,7 @@ library(tidyr)
 library(knitr)
 library(kableExtra)
 library(janitor)
+library(DiagrammeR)
 
 # ui ----
 ui <- fluidPage(
@@ -43,7 +44,9 @@ ui <- fluidPage(
         p(textOutput("diagnosticity_text")),
         p("Note that factors such as underestimated power, poor measurement, p-hacking, publication bias, etc. will worsen this rate further."),
         
-        tableOutput("diagnosticity"),
+        grVizOutput('diagnosticity_plot', width = "60%", height = "30%"),
+        
+        tableOutput("diagnosticity_table"),
         
         p("Code by Ian Hussey, available on", a(href = "https://github.com/ianhussey/p-value-diagnosticity", "GitHub")) 
         
@@ -90,19 +93,25 @@ server <- function(input, output) {
     
   } 
   
-  output$diagnosticity <- function() {
+  output$diagnosticity_table <- function() {
     
-    p_diagnosticity(alpha = input$alpha, 
-                    power = input$power, 
-                    true_hypotheses = input$true_hypotheses) %>%
-      pivot_longer(cols = everything(), names_to = "Metric", values_to = "Result") %>%
-      knitr::kable("html") %>%
+    result <- p_diagnosticity(alpha = input$alpha,
+                              power = input$power,
+                              true_hypotheses = input$true_hypotheses)
+    
+    result %>%
+      select(`False discovery rate`,
+             `False omission rate`,
+             `Diagnosticity of p-value for a true-real effect`,
+             `Diagnositicity of p-value for a true-null effect`) %>%
+      pivot_longer(cols = everything()) %>%
+      knitr::kable("html", col.names = NULL) %>%
       kable_styling("striped", full_width = FALSE, position = "left")
     
   }
   
   output$diagnosticity_text <- function() {
-
+    
     result <- p_diagnosticity(alpha = input$alpha,
                               power = input$power,
                               true_hypotheses = input$true_hypotheses)
@@ -113,6 +122,45 @@ server <- function(input, output) {
     return(paste0("Under these conditions, ", result_FDR, " of significant p-values represent false positives."))
     
   }
+  
+  output$diagnosticity_plot <- renderGrViz({
+    
+    result <- p_diagnosticity(alpha = input$alpha,
+                              power = input$power,
+                              true_hypotheses = input$true_hypotheses)
+    
+    #fixedsize = TRUE, 
+    #fontsize = 4] 
+    grViz(diagram = "digraph flowchart {
+        # define node aesthetics
+        node [fontname = Arial, 
+              shape = square, 
+              color = Lavender, 
+              style = filled]
+        tab1 [label = '@@1-1 experiments']
+        tab2 [label = '@@1-2 real effects']
+        tab3 [label = '@@1-3 null effects']
+        tab4 [label = '@@1-4 real effects found']
+        tab5 [label = '@@1-5 false negatives']
+        tab6 [label = '@@1-6 null effects found']
+        tab7 [label = '@@1-7 false positives']
+        # set up node layout
+        tab1 -> tab2;
+        tab1 -> tab3;
+        tab2 -> tab4;
+        tab2 -> tab5;
+        tab3 -> tab6;
+        tab3 -> tab7
+        }
+        [1]: result
+        "
+    )
+    
+  })
+  
+  # output$diagnosticity_plot2 <- renderGrViz({
+  #   
+  # })
   
 }
 
